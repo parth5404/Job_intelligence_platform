@@ -91,6 +91,7 @@ class JobQualificationServiceTest {
         return new CandidateProfile(
                 "Samyak",
                 "samyak@example.com",
+                "test-password-hash",
                 "Bhopal",
                 preferredLocations,
                 minimumSalary,

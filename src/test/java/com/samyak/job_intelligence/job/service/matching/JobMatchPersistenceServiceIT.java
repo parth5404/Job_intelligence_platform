@@ -95,6 +95,7 @@ class JobMatchPersistenceServiceIT {
                         new CandidateProfile(
                                 "Samyak",
                                 "samyak@example.com",
+                                "test-password-hash",
                                 "Indore",
                                 null,
                                 BigDecimal.valueOf(800000),
@@ -215,6 +216,7 @@ class JobMatchPersistenceServiceIT {
                         new CandidateProfile(
                                 "Samyak",
                                 "samyak-update@example.com",
+                                "test-password-hash",
                                 "Indore",
                                 null,
                                 BigDecimal.valueOf(800000),

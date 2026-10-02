@@ -1,5 +1,6 @@
 package com.samyak.job_intelligence.candidate.web.dto;
 
+import com.samyak.job_intelligence.candidate.service.CandidateProfileService;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
@@ -31,4 +32,9 @@ public record CandidateUpdateRequest(
 
         JsonNode preferredEmploymentTypes
 ) {
+
+    public CandidateUpdateRequest {
+        // Normalize before bean validation so padded or upper-case emails are accepted and canonicalized.
+        email = CandidateProfileService.normalizeEmail(email);
+    }
 }

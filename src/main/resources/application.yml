@@ -20,6 +20,14 @@ spring:
   flyway:
     enabled: true
 
+security:
+  jwt:
+    # Required: no default on purpose. Provide a random value of at least 32 bytes via the environment.
+    secret: ${JWT_SECRET}
+    access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:15m}
+    refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:7d}
+    issuer: job-intelligence
+
 llm:
   gemini:
     api-key: ${GEMINI_API_KEY}

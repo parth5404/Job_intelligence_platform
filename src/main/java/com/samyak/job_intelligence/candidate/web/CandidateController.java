@@ -1,15 +1,19 @@
 package com.samyak.job_intelligence.candidate.web;
 
 
+import com.samyak.job_intelligence.auth.security.AuthenticatedCandidate;
 import com.samyak.job_intelligence.candidate.domain.CandidateProfile;
 import com.samyak.job_intelligence.candidate.service.CandidateProfileService;
-import com.samyak.job_intelligence.candidate.web.dto.CandidateCreateRequest;
 import com.samyak.job_intelligence.candidate.web.dto.CandidateResponse;
 import com.samyak.job_intelligence.candidate.web.dto.CandidateUpdateRequest;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Candidate profiles are created through {@code POST /api/v1/auth/register}.
+ */
 @RestController
 @RequestMapping("/api/v1/candidates")
 public class CandidateController {
@@ -19,34 +23,28 @@ public class CandidateController {
         this.candidateProfileService = candidateProfileService;
     }
 
-
-    @PostMapping
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public CandidateResponse create(
-            @Valid @RequestBody
-            CandidateCreateRequest request){
-        CandidateProfile candidateProfile = candidateProfileService.create(
-                request.name(),
-                request.email(),
-                request.currentLocation(),
-                request.preferredLocations(),
-                request.minimumSalary(),
-                request.minimumSalaryCurrency(),
-                request.experienceYears(),
-                request.preferredEmploymentTypes()
-
-        );
-        return CandidateResponse.from(candidateProfile);
+    @GetMapping("/me")
+    public CandidateResponse getMe(@AuthenticationPrincipal AuthenticatedCandidate principal) {
+        return CandidateResponse.from(candidateProfileService.getById(principal.id()));
     }
 
-    @PatchMapping("/{candidateId}")
+    @PatchMapping("/me")
+    public CandidateResponse updateMe(
+            @AuthenticationPrincipal AuthenticatedCandidate principal,
+            @Valid @RequestBody CandidateUpdateRequest request
+    ) {
+        return update(principal.id(), request);
+    }
+
+    @PatchMapping("/{candidateProfileId}")
+    @PreAuthorize("@candidateAccess.isSelf(#candidateProfileId)")
     public CandidateResponse update(
-            @PathVariable Long candidateId,
+            @PathVariable Long candidateProfileId,
             @Valid @RequestBody CandidateUpdateRequest request
     ){
         CandidateProfile candidateProfile =
                 candidateProfileService.update(
-                        candidateId,
+                        candidateProfileId,
                         request.name(),
                         request.email(),
                         request.currentLocation(),

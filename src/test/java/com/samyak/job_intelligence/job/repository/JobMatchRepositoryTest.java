@@ -62,6 +62,7 @@ class JobMatchRepositoryTest {
                 new CandidateProfile(
                         "Candidate A",
                         "candidate-a@test.com",
+                        "test-password-hash",
                         "Bhopal",
                         null,
                         new BigDecimal("50000.00"),

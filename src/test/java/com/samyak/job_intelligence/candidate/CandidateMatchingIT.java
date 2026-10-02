@@ -86,6 +86,7 @@ class CandidateMatchingIT {
                 candidateProfileService.create(
                         "Test Candidate",
                         "candidate@test.com",
+                        "test-password-hash",
                         "Bangalore",
                         JsonNodeFactory.instance
                                 .arrayNode()

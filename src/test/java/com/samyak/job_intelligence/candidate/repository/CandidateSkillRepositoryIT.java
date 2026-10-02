@@ -52,6 +52,7 @@ class CandidateSkillRepositoryIT {
                 new CandidateProfile(
                         "Samyak",
                         "samyak@example.com",
+                        "test-password-hash",
                         "Bhopal",
                         null,
                         null,
@@ -99,6 +100,7 @@ class CandidateSkillRepositoryIT {
                 new CandidateProfile(
                         "Samyak",
                         "samyak2@example.com",
+                        "test-password-hash",
                         "Bhopal",
                         null,
                         null,

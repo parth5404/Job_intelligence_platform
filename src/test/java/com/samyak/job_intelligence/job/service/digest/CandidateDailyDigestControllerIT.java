@@ -1,5 +1,6 @@
 package com.samyak.job_intelligence.job.service.digest;
 
+import com.samyak.job_intelligence.auth.security.AuthenticatedCandidate;
 import com.samyak.job_intelligence.company.domain.Company;
 import com.samyak.job_intelligence.job.domain.Job;
 import com.samyak.job_intelligence.job.domain.JobMatch;
@@ -10,10 +11,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -24,8 +27,10 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -125,6 +130,7 @@ class CandidateDailyDigestControllerIT {
                                 candidateProfileId
                         )
                                 .param("limit", String.valueOf(limit))
+                                .with(asCandidate(10L))
                 )
                 .andExpect(status().isOk())
 
@@ -177,6 +183,7 @@ class CandidateDailyDigestControllerIT {
                                 10L
                         )
                                 .param("limit", "101")
+                                .with(asCandidate(10L))
                 )
                 .andExpect(status().isBadRequest());
     }
@@ -190,7 +197,51 @@ class CandidateDailyDigestControllerIT {
                                 10L
                         )
                                 .param("limit", "0")
+                                .with(asCandidate(10L))
                 )
                 .andExpect(status().isBadRequest());
+    }
+
+    /** Authenticates the request as candidate {@code id}, as the JWT filter would. */
+    private static RequestPostProcessor asCandidate(long id) {
+        return authentication(new UsernamePasswordAuthenticationToken(
+                new AuthenticatedCandidate(id, "candidate" + id + "@example.com"),
+                null,
+                List.of()
+        ));
+    }
+
+    @Test
+    void shouldRejectUnauthenticatedRequest() throws Exception {
+        mockMvc.perform(
+                        get("/api/v1/candidates/{id}/daily-digest", 10L)
+                )
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(dailyDigestService);
+    }
+
+    @Test
+    void shouldRejectAnotherCandidatesRequest() throws Exception {
+        mockMvc.perform(
+                        get("/api/v1/candidates/{id}/daily-digest", 11L)
+                                .with(asCandidate(10L))
+                )
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403));
+
+        verifyNoInteractions(dailyDigestService);
+    }
+
+    @Test
+    void shouldRejectAnotherCandidatesRequestBeforeValidatingParameters() throws Exception {
+        mockMvc.perform(
+                        get("/api/v1/candidates/{id}/daily-digest", 11L)
+                                .param("limit", "0")
+                                .with(asCandidate(10L))
+                )
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(dailyDigestService);
     }
 }
