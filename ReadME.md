@@ -62,7 +62,7 @@ Daily Recommendations
 
 | **Category**       | **Technologies**                                                                                |
 | ------------------ | ----------------------------------------------------------------------------------------------- |
-| **Backend**        | Java 25 LTS, Spring Boot 4.1, Maven, Spring MVC, Spring Data JPA, Hibernate, Jakarta Validation |
+| **Backend**        | Java 25 LTS, Spring Boot 4.1, Maven, Spring MVC, Spring Security (JWT), Spring Data JPA, Hibernate, Jakarta Validation |
 | **Database**       | PostgreSQL, Flyway                                                                              |
 | **Testing**        | JUnit, Spring Boot Test, Testcontainers                                                         |
 | **Infrastructure** | Docker, Docker Compose, Spring Boot Actuator                                                    |
@@ -125,11 +125,12 @@ Deduplication uses multiple signals:
    docker compose up -d
 
 
-2. **Run the Application:**
+2. **Run the Application** (the JWT signing secret is required, see [Authentication](#-authentication)):
 
    Bash
 
    ```bash
+   export JWT_SECRET="$(openssl rand -base64 48)"
    ./mvnw spring-boot:run
    ```
 
@@ -148,4 +149,49 @@ Deduplication uses multiple signals:
 
 > **Note:** To reset the local database volume and wipe development data, run `docker compose down -v`.
 
+---
 
+## 🔐 Authentication
+
+Candidates authenticate with stateless **JWT bearer tokens**. The existing `CandidateProfile` is the authenticated principal; there is no separate user table. Passwords are stored only as **BCrypt** hashes.
+
+### Configuration
+
+| Property (env var)                                      | Default           | Description                                                              |
+| ------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------ |
+| `security.jwt.secret` (`JWT_SECRET`)                    | **none, required** | HS256 signing key, at least 32 bytes. The application refuses to start without it. Never commit it. |
+| `security.jwt.access-token-expiration` (`JWT_ACCESS_TOKEN_EXPIRATION`)   | `15m` | Access token lifetime (Spring `Duration` format)  |
+| `security.jwt.refresh-token-expiration` (`JWT_REFRESH_TOKEN_EXPIRATION`) | `7d`  | Refresh token lifetime                            |
+| `security.jwt.issuer`                                   | `job-intelligence` | `iss` claim that is issued and required                                  |
+
+Generate a secret with `openssl rand -base64 48`. Automated tests use a fake secret from `src/test/resources/config/application.yml`.
+
+### Endpoints
+
+| Method & path                      | Auth   | Description |
+| ---------------------------------- | ------ | ----------- |
+| `POST /api/v1/auth/register`       | public | Creates a candidate (same profile fields and validation as before, plus `password` and `confirmPassword`; password 8-72 bytes). Email is trimmed and lower-cased. Returns `201` with the candidate and an access/refresh token pair; `409` if the email is already registered. |
+| `POST /api/v1/auth/login`          | public | `{email, password}` returns the same response as register. Unknown email and wrong password both return an identical `401`. |
+| `POST /api/v1/auth/refresh`        | public | `{refreshToken}` rotates the refresh token and returns a new pair. Expired, malformed, revoked or reused tokens return `401`. |
+| `POST /api/v1/auth/logout`         | bearer | Revokes all of the caller's refresh tokens. Returns `204`. |
+| `GET /api/v1/auth/me`              | bearer | Returns the authenticated candidate. |
+| `GET` / `PATCH /api/v1/candidates/me` | bearer | Read / update the authenticated candidate's own profile. |
+
+`GET /actuator/health` is public. **Every other route under `/api/v1/**` requires a valid access token** (`Authorization: Bearer <accessToken>`).
+
+Tokens carry the candidate id (`sub`, `cid`), `email` and a `type` claim (`access` or `refresh`); a refresh token is rejected as an access token and vice versa.
+
+### Authorization
+
+Routes scoped to a candidate (`PATCH /api/v1/candidates/{candidateProfileId}`, `.../skills`, `.../skills/bulk`, `.../daily-digest`, `.../matching/refresh`) only allow the candidate that owns the id in the path; other candidates get `403`. Ownership is decided solely from the path id and the token, never from request bodies or query parameters.
+
+Errors are returned as JSON (`timestamp`, `status`, `error`, `message`, `path`, optional `fieldErrors`) without internal details.
+
+### Behaviour worth knowing
+
+* **Refresh token rotation and reuse detection:** every refresh revokes the used token and issues a new one. Presenting an already revoked refresh token is treated as theft and revokes *all* of that candidate's refresh tokens. Refresh tokens are stored only as SHA-256 hashes in `candidate_refresh_tokens`.
+* **Logout** revokes refresh tokens only. Access tokens are stateless and stay valid until they expire (15 minutes by default).
+* **Changing the email** invalidates access tokens issued for the old email; the client can obtain a new one with its refresh token.
+* **Existing candidates (created before authentication existed)** are migrated (`V26`) with an unusable password hash and cannot log in until a password is set. There is no password-reset flow yet.
+* **`POST /api/v1/candidates` was removed.** Create candidates with `POST /api/v1/auth/register`.
+* There are no roles yet: routes that are not candidate-scoped (companies, source configurations, ingestion, admin repair endpoints) only require *an authenticated candidate*.

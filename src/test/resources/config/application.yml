@@ -1,0 +1,5 @@
+# Loaded on top of src/main/resources/application.yml for tests only.
+# Deliberately fake secret: it only exists so the application context can start under test.
+security:
+  jwt:
+    secret: test-only-jwt-secret-not-for-production-use-0123456789

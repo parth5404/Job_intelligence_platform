@@ -161,6 +161,7 @@ class SkillMatchingServiceIT {
                 new CandidateProfile(
                         "Samyak",
                         "samyak-skill-test@example.com",
+                        "test-password-hash",
                         "Bhopal",
                         null,   // preferred locations// preferred employment types
                         null,   // minimum salary

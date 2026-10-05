@@ -7,11 +7,13 @@ import com.samyak.job_intelligence.candidate.web.dto.CandidateSkillBulkResponse;
 import com.samyak.job_intelligence.candidate.web.dto.CandidateSkillCreateRequest;
 import com.samyak.job_intelligence.candidate.web.dto.CandidateSkillResponse;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/candidates/{candidateProfileId}/skills")
+@PreAuthorize("@candidateAccess.isSelf(#candidateProfileId)")
 public class CandidateSkillController {
     private final CandidateSkillService candidateSkillService;
 

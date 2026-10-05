@@ -1,12 +1,16 @@
 package com.samyak.job_intelligence.candidate.service;
 
 import com.samyak.job_intelligence.candidate.domain.CandidateProfile;
+import com.samyak.job_intelligence.candidate.exception.DuplicateEmailException;
 import com.samyak.job_intelligence.candidate.repository.CandidateProfileRepository;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
+import java.util.Locale;
 
 @Service
 public class CandidateProfileService {
@@ -18,10 +22,22 @@ public class CandidateProfileService {
     }
 
 
+    /**
+     * Canonical form used for storing and looking up candidate emails.
+     */
+    public static String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Creates a candidate profile. The caller supplies an already encoded password hash;
+     * raw passwords never reach this service.
+     */
     @Transactional
     public CandidateProfile create(
             String name,
             String email,
+            String passwordHash,
             String currentLocation,
             JsonNode preferredLocations,
             BigDecimal minimumSalary,
@@ -29,14 +45,14 @@ public class CandidateProfileService {
             BigDecimal experienceYears,
             JsonNode preferredEmploymentTypes
     ){
-        if(candidateProfileRepository.existsByEmail(email)){
-            throw new IllegalArgumentException(
-                    "Candidate already exists: " + email
-            );
+        String normalizedEmail = normalizeEmail(email);
+        if(candidateProfileRepository.existsByEmail(normalizedEmail)){
+            throw new DuplicateEmailException();
         }
         CandidateProfile candidateProfile = new CandidateProfile(
                 name,
-                email,
+                normalizedEmail,
+                passwordHash,
                 currentLocation,
                 preferredLocations,
                 minimumSalary,
@@ -45,7 +61,28 @@ public class CandidateProfileService {
                 experienceYears,
                 preferredEmploymentTypes
         );
-        return candidateProfileRepository.save(candidateProfile);
+        try {
+            // Flush so a concurrent duplicate registration surfaces here and not at commit time.
+            return candidateProfileRepository.saveAndFlush(candidateProfile);
+        } catch (DataIntegrityViolationException ex) {
+            if (isEmailUniqueViolation(ex)) {
+                throw new DuplicateEmailException();
+            }
+            throw ex;
+        }
+    }
+
+    private static boolean isEmailUniqueViolation(DataIntegrityViolationException ex) {
+        Throwable cause = ex.getCause();
+        while (cause != null) {
+            if (cause instanceof ConstraintViolationException violation
+                    && violation.getConstraintName() != null
+                    && violation.getConstraintName().toLowerCase(Locale.ROOT).contains("email")) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     @Transactional(readOnly = true)
@@ -73,13 +110,12 @@ public class CandidateProfileService {
     ) {
         CandidateProfile candidateProfile = getById(candidateProfileId);
 
-        if (email != null && !email.equals(candidateProfile.getEmail())) {
-            if (candidateProfileRepository.existsByEmail(email)) {
-                throw new IllegalArgumentException(
-                        "Candidate already exists: " + email
-                );
+        String normalizedEmail = normalizeEmail(email);
+        if (normalizedEmail != null && !normalizedEmail.equals(candidateProfile.getEmail())) {
+            if (candidateProfileRepository.existsByEmail(normalizedEmail)) {
+                throw new DuplicateEmailException();
             }
-            candidateProfile.updateEmail(email);
+            candidateProfile.updateEmail(normalizedEmail);
         }
 
         if (name != null) {

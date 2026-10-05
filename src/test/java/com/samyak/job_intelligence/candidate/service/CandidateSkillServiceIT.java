@@ -68,6 +68,7 @@ class CandidateSkillServiceIT {
         CandidateProfile candidate = new CandidateProfile(
                 "Test Candidate",
                 "test-skill-create@gmail.com",
+                "test-password-hash",
                 "Pune",
                 null,
                 new BigDecimal("800000"),
@@ -101,6 +102,7 @@ class CandidateSkillServiceIT {
         CandidateProfile candidate = new CandidateProfile(
                 "Duplicate Test Candidate",
                 "test-skill-duplicate@gmail.com",
+                "test-password-hash",
                 "Pune",
                 null,
                 new BigDecimal("800000"),

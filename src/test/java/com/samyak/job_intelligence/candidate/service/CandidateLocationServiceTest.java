@@ -35,6 +35,7 @@ class CandidateLocationServiceTest {
         CandidateProfile candidate = new CandidateProfile(
                 "Samyak",
                 "samyak@example.com",
+                "test-password-hash",
                 "Bhopal",
                 locations,
                 null,
@@ -64,6 +65,7 @@ class CandidateLocationServiceTest {
         CandidateProfile candidate = new CandidateProfile(
                 "Samyak",
                 "samyak@example.com",
+                "test-password-hash",
                 "Bhopal",
                 null,
                 null,
@@ -93,6 +95,7 @@ class CandidateLocationServiceTest {
         CandidateProfile candidate = new CandidateProfile(
                 "Samyak",
                 "samyak@example.com",
+                "test-password-hash",
                 "Bhopal",
                 locations,
                 null,

@@ -1,6 +1,7 @@
 package com.samyak.job_intelligence.candidate.domain;
 
 import com.samyak.job_intelligence.common.persistence.AuditableEntity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -22,6 +23,15 @@ public class CandidateProfile extends AuditableEntity {
 
     @Column(nullable = false,length = 320,unique = true)
     private String email;
+
+    /** BCrypt hash of the candidate's password. Internal authentication state: never serialized. */
+    @JsonIgnore
+    @Column(name = "password_hash", nullable = false, length = 100)
+    private String passwordHash;
+
+    @JsonIgnore
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified;
 
     @Column(name = "current_location")
     private String currentLocation;
@@ -50,9 +60,11 @@ public class CandidateProfile extends AuditableEntity {
         //required by JPA
     }
 
-    public CandidateProfile(String name,String email,String currentLocation,JsonNode preferredLocations,BigDecimal minimumSalary,String minimumSalaryCurrency,boolean isActive,BigDecimal experienceYears,JsonNode preferredEmploymentTypes){
+    public CandidateProfile(String name,String email,String passwordHash,String currentLocation,JsonNode preferredLocations,BigDecimal minimumSalary,String minimumSalaryCurrency,boolean isActive,BigDecimal experienceYears,JsonNode preferredEmploymentTypes){
         this.name = name;
         this.email = email;
+        this.passwordHash = passwordHash;
+        this.emailVerified = false;
         this.currentLocation = currentLocation;
         this.preferredLocations = preferredLocations;
         this.minimumSalary = minimumSalary;
@@ -68,6 +80,10 @@ public class CandidateProfile extends AuditableEntity {
 
     public void updateEmail(String email) {
         this.email = email;
+    }
+
+    public void updatePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     public void updateCurrentLocation(String currentLocation) {
